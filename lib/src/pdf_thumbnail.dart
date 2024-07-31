@@ -36,6 +36,7 @@ class PdfThumbnail extends StatefulWidget {
     Widget? loadingIndicator,
     bool? scrollToCurrentPage,
     Widget? closeButton,
+    int? pageCount,
   }) {
     return PdfThumbnail._(
       key: key,
@@ -60,6 +61,7 @@ class PdfThumbnail extends StatefulWidget {
           ),
       scrollToCurrentPage: scrollToCurrentPage ?? false,
       closeButton: closeButton,
+      pageCount: pageCount!,
     );
   }
   const PdfThumbnail._({
@@ -74,6 +76,7 @@ class PdfThumbnail extends StatefulWidget {
     this.currentPageWidget,
     this.scrollToCurrentPage = false,
     this.closeButton,
+    required this.pageCount,
   });
 
   /// File path
@@ -108,13 +111,15 @@ class PdfThumbnail extends StatefulWidget {
   /// false by default
   final bool scrollToCurrentPage;
 
+  //Page Count,
+  final int pageCount;
+
   @override
   State<PdfThumbnail> createState() => _PdfThumbnailState();
 }
 
 class _PdfThumbnailState extends State<PdfThumbnail> {
   late ScrollController controller;
-  late Future<int> pageCountFuture;
   late ImageThumbnailCacher cacher;
   final Map<int, Future<Uint8List?>> _imageFutures = {};
   final Map<int, Uint8List?> _imageCache = {};
@@ -124,12 +129,6 @@ class _PdfThumbnailState extends State<PdfThumbnail> {
     super.initState();
     controller = ScrollController();
     cacher = ImageThumbnailCacher();
-    pageCountFuture = _getPageCount(widget.path!);
-  }
-
-  Future<int> _getPageCount(String filePath) async {
-    final document = await PdfDocument.openFile(filePath);
-    return document.pages.length;
   }
 
   void swipeToPage(int page, int itemCount) {
@@ -145,6 +144,15 @@ class _PdfThumbnailState extends State<PdfThumbnail> {
   }
 
   @override
+  void didUpdateWidget(covariant PdfThumbnail oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.scrollToCurrentPage &&
+        widget.currentPage != oldWidget.currentPage) {
+      swipeToPage(widget.currentPage, widget.pageCount);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Column(
       children: [
@@ -152,80 +160,65 @@ class _PdfThumbnailState extends State<PdfThumbnail> {
         Container(
           height: widget.height,
           color: widget.backgroundColor,
-          child: FutureBuilder<int>(
-            future: pageCountFuture,
-            builder: (context, snapshot) {
-              if (snapshot.hasData) {
-                final pageCount = snapshot.data!;
-                return ListView.builder(
-                  controller: controller,
-                  padding: EdgeInsets.symmetric(vertical: widget.height * 0.1),
-                  scrollDirection: Axis.horizontal,
-                  itemCount: pageCount,
-                  itemBuilder: (context, index) {
-                    final pageNumber = index;
-                    final isCurrentPage = pageNumber == widget.currentPage;
+          child: ListView.builder(
+            controller: controller,
+            padding: EdgeInsets.symmetric(vertical: widget.height * 0.1),
+            scrollDirection: Axis.horizontal,
+            itemCount: widget.pageCount,
+            itemBuilder: (context, index) {
+              final pageNumber = index;
+              final isCurrentPage = pageNumber == widget.currentPage;
 
-                    if (!_imageFutures.containsKey(pageNumber)) {
-                      _imageFutures[pageNumber] =
-                          _loadImage(pageNumber, widget.path!);
-                    }
-
-                    return FutureBuilder<Uint8List?>(
-                      future: _imageFutures[pageNumber],
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            child: Container(
-                              width: 100,
-                              height: widget.height,
-                              color: Colors.grey.shade300,
-                            ),
-                          );
-                        } else if (snapshot.hasData) {
-                          final image = snapshot.data!;
-                          return GestureDetector(
-                            onTap: () {
-                              widget.onPageClicked?.call(pageNumber);
-                              if (widget.scrollToCurrentPage) {
-                                swipeToPage(pageNumber, pageCount);
-                              }
-                            },
-                            child: Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 8),
-                              child: Stack(
-                                children: [
-                                  AnimatedContainer(
-                                    key: Key('thumbnail_$pageNumber'),
-                                    duration: const Duration(milliseconds: 100),
-                                    decoration: isCurrentPage
-                                        ? widget.currentPageDecoration!
-                                        : const BoxDecoration(
-                                            color: Colors.white,
-                                          ),
-                                    child: Image.memory(image),
-                                  ),
-                                  widget.currentPageWidget!(
-                                    pageNumber,
-                                    isCurrentPage,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        } else {
-                          return const SizedBox();
-                        }
-                      },
-                    );
-                  },
-                );
-              } else {
-                return widget.loadingIndicator!;
+              if (!_imageFutures.containsKey(pageNumber)) {
+                _imageFutures[pageNumber] =
+                    _loadImage(pageNumber, widget.path!);
               }
+
+              return FutureBuilder<Uint8List?>(
+                future: _imageFutures[pageNumber],
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Container(
+                        width: 100,
+                        height: widget.height,
+                        color: Colors.grey.shade300,
+                      ),
+                    );
+                  } else if (snapshot.hasData) {
+                    final image = snapshot.data!;
+                    return GestureDetector(
+                      onTap: () {
+                        widget.onPageClicked?.call(pageNumber);
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Stack(
+                          children: [
+                            AnimatedContainer(
+                              key: Key('thumbnail_$pageNumber'),
+                              duration: const Duration(milliseconds: 100),
+                              decoration: isCurrentPage
+                                  ? widget.currentPageDecoration!
+                                  : const BoxDecoration(
+                                      color: Colors.white,
+                                    ),
+                              child: Image.memory(image),
+                            ),
+                            widget.currentPageWidget!(
+                              pageNumber,
+                              isCurrentPage,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  } else {
+                    return const SizedBox();
+                  }
+                },
+              );
             },
           ),
         ),
