@@ -11,7 +11,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  pdfx: ^2.6.0
+  pdfrx: ^1.0.82
 
 dev_dependencies:
   flutter_test:

@@ -5,9 +5,11 @@
 // license that can be found in the LICENSE file or at
 // https://opensource.org/licenses/MIT.
 
+import 'dart:ui';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:pdfx/pdfx.dart';
+import 'package:pdfrx/pdfrx.dart';
 
 /// Callback when the user taps on a thumbnail
 typedef ThumbnailPageCallback = void Function(int page);
@@ -228,14 +230,17 @@ Future<Map<int, Uint8List>> _render(
       }
     }
     final document = await PdfDocument.openFile(filePath);
-    for (var pageNumber = 1; pageNumber <= document.pagesCount; pageNumber++) {
-      final page = await document.getPage(pageNumber);
+    for (var pageNumber = 1;
+        pageNumber <= document.pages.length;
+        pageNumber++) {
+      final page = document.pages[pageNumber];
       final pageImage = await page.render(
-        width: page.width,
-        height: page.height,
+        width: page.width.toInt(),
+        height: page.height.toInt(),
       );
-      images[pageNumber] = pageImage!.bytes;
-      await page.close();
+      final image = await pageImage!.createImage();
+      final pngBytes = await image.toByteData(format: ImageByteFormat.png);
+      images[pageNumber] = Uint8List.view(pngBytes!.buffer);
     }
   } catch (e) {
     if (kDebugMode) {
