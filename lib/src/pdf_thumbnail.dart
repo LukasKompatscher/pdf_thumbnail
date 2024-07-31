@@ -61,7 +61,7 @@ class PdfThumbnail extends StatefulWidget {
           ),
       scrollToCurrentPage: scrollToCurrentPage ?? false,
       closeButton: closeButton,
-      pageCount: pageCount!,
+      pageCount: pageCount ?? 0,
     );
   }
   const PdfThumbnail._({
