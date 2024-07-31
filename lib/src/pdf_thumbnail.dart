@@ -236,8 +236,19 @@ class _PdfThumbnailState extends State<PdfThumbnail> {
       return cachedImage;
     }
     try {
-      final imageBytes = await compute(
-          _createThumbnail, {'filePath': filePath, 'pageNumber': pageNumber});
+      final document = await PdfDocument.openFile(filePath);
+      final page = document.pages[pageNumber];
+      final aspectRatio = page.width / page.height;
+      final newHeight = 250;
+      final newWidth = (aspectRatio * newHeight).toInt();
+
+      final pageImage = await page.render(
+        width: newWidth,
+        height: newHeight,
+      );
+      final image = await pageImage!.createImage();
+      final pngBytes = await image.toByteData(format: ImageByteFormat.png);
+      final imageBytes = Uint8List.view(pngBytes!.buffer);
       await cacher.write(filePath, pageNumber, imageBytes);
       _imageCache[pageNumber] = imageBytes;
       return imageBytes;
@@ -247,20 +258,6 @@ class _PdfThumbnailState extends State<PdfThumbnail> {
       }
       return null;
     }
-  }
-
-  Future<Uint8List> _createThumbnail(Map<String, dynamic> args) async {
-    final filePath = args['filePath'];
-    final pageNumber = args['pageNumber'];
-    final document = await PdfDocument.openFile(filePath);
-    final page = document.pages[pageNumber];
-    final pageImage = await page.render(
-      width: page.width.toInt(),
-      height: page.height.toInt(),
-    );
-    final image = await pageImage!.createImage();
-    final pngBytes = await image.toByteData(format: ImageByteFormat.png);
-    return Uint8List.view(pngBytes!.buffer);
   }
 
   @override
