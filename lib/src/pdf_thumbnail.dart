@@ -117,6 +117,7 @@ class _PdfThumbnailState extends State<PdfThumbnail> {
   late Future<int> pageCountFuture;
   late ImageThumbnailCacher cacher;
   final Map<int, Future<Uint8List?>> _imageFutures = {};
+  final Map<int, Uint8List?> _imageCache = {};
 
   @override
   void initState() {
@@ -152,10 +153,12 @@ class _PdfThumbnailState extends State<PdfThumbnail> {
                   itemBuilder: (context, index) {
                     final pageNumber = index;
                     final isCurrentPage = pageNumber == widget.currentPage;
+
                     if (!_imageFutures.containsKey(pageNumber)) {
                       _imageFutures[pageNumber] =
-                          _getPageImage(widget.path!, pageNumber);
+                          _loadImage(pageNumber, widget.path!);
                     }
+
                     return FutureBuilder<Uint8List?>(
                       future: _imageFutures[pageNumber],
                       builder: (context, snapshot) {
@@ -163,13 +166,16 @@ class _PdfThumbnailState extends State<PdfThumbnail> {
                             ConnectionState.waiting) {
                           return Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 8),
-                            child: widget.loadingIndicator,
+                            child: Container(
+                              width: 100,
+                              height: widget.height,
+                              color: Colors.grey.shade300,
+                            ),
                           );
                         } else if (snapshot.hasData) {
                           final image = snapshot.data!;
                           return GestureDetector(
-                            onTap: () =>
-                                widget.onPageClicked?.call(pageNumber - 1),
+                            onTap: () => widget.onPageClicked?.call(pageNumber),
                             child: Padding(
                               padding:
                                   const EdgeInsets.symmetric(horizontal: 8),
@@ -210,9 +216,13 @@ class _PdfThumbnailState extends State<PdfThumbnail> {
     );
   }
 
-  Future<Uint8List?> _getPageImage(String filePath, int pageNumber) async {
+  Future<Uint8List?> _loadImage(int pageNumber, String filePath) async {
+    if (_imageCache.containsKey(pageNumber)) {
+      return _imageCache[pageNumber];
+    }
     final cachedImage = await cacher.read(filePath, pageNumber);
     if (cachedImage != null) {
+      _imageCache[pageNumber] = cachedImage;
       return cachedImage;
     }
     try {
@@ -226,6 +236,7 @@ class _PdfThumbnailState extends State<PdfThumbnail> {
       final pngBytes = await image.toByteData(format: ImageByteFormat.png);
       final imageBytes = Uint8List.view(pngBytes!.buffer);
       await cacher.write(filePath, pageNumber, imageBytes);
+      _imageCache[pageNumber] = imageBytes;
       return imageBytes;
     } catch (e) {
       if (kDebugMode) {

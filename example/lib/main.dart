@@ -65,7 +65,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
                       onPageClicked: (page) {
                         setState(() {
-                          currentPage = page + 1;
+                          currentPage = page;
                         });
                         if (kDebugMode) {
                           print('Page $page clicked');
