@@ -230,7 +230,7 @@ Future<Map<int, Uint8List>> _render(
       }
     }
     final document = await PdfDocument.openFile(filePath);
-    for (var pageNumber = 1;
+    for (var pageNumber = 0;
         pageNumber <= document.pages.length;
         pageNumber++) {
       final page = document.pages[pageNumber];
