@@ -168,8 +168,9 @@ class _PdfThumbnailState extends State<PdfThumbnail> {
                         padding: const EdgeInsets.symmetric(horizontal: 8),
                         child: Stack(
                           children: [
-                            DecoratedBox(
+                            AnimatedContainer(
                               key: Key('thumbnail_$pageNumber'),
+                              duration: const Duration(milliseconds: 100),
                               decoration: isCurrentPage
                                   ? widget.currentPageDecoration!
                                   : const BoxDecoration(

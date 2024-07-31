@@ -58,48 +58,12 @@ class _MyHomePageState extends State<MyHomePage> {
                   ? PdfThumbnail.fromFile(
                       snapshot.data!.path,
                       currentPage: currentPage,
-                      backgroundColor:
-                          Theme.of(context).primaryColor.withOpacity(0.3),
+                      backgroundColor: Colors.transparent,
                       height: 200,
-
-                      /// You can put widget to display page number.
-                      /// This widget will be in stack.
-                      currentPageWidget: (page, isCurrentPage) {
-                        return Positioned(
-                          bottom: 50,
-                          right: 0,
-                          child: Container(
-                            height: 30,
-                            width: 30,
-                            color: isCurrentPage ? Colors.green : Colors.pink,
-                            alignment: Alignment.center,
-                            child: Text(
-                              '$page',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-
-                      /// Customize decoration so selected page is highlighted
-                      currentPageDecoration: const BoxDecoration(
-                        color: Colors.white,
-                        border: Border(
-                          bottom: BorderSide(
-                            color: Colors.orange,
-                            width: 10,
-                          ),
-                        ),
+                      currentPageDecoration: BoxDecoration(
+                        border: Border.all(color: Colors.black, width: 2),
                       ),
                       onPageClicked: (page) {
-                        /// You can update the current page,
-                        /// or animate to the page with
-                        /// most of the pdf viewer packages' controller.
-                        /// like: _controller.setPage(page);
                         setState(() {
                           currentPage = page + 1;
                         });
