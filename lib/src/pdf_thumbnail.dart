@@ -238,9 +238,13 @@ class _PdfThumbnailState extends State<PdfThumbnail> {
     try {
       final document = await PdfDocument.openFile(filePath);
       final page = document.pages[pageNumber];
+      final aspectRatio = page.width / page.height;
+      final newHeight = 250;
+      final newWidth = (aspectRatio * newHeight).toInt();
+
       final pageImage = await page.render(
-        width: page.width.toInt(),
-        height: page.height.toInt(),
+        width: newWidth,
+        height: newHeight,
       );
       final image = await pageImage!.createImage();
       final pngBytes = await image.toByteData(format: ImageByteFormat.png);
