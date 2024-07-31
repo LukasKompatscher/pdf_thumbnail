@@ -11,6 +11,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  path_provider: ^2.1.4
   pdfrx: ^1.0.82
 
 dev_dependencies:
