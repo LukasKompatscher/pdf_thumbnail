@@ -132,6 +132,18 @@ class _PdfThumbnailState extends State<PdfThumbnail> {
     return document.pages.length;
   }
 
+  void swipeToPage(int page, int itemCount) {
+    final contentSize = controller.position.viewportDimension +
+        controller.position.maxScrollExtent;
+    final index = page - 1;
+    final target = contentSize * index / itemCount;
+    controller.animateTo(
+      target,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -175,7 +187,12 @@ class _PdfThumbnailState extends State<PdfThumbnail> {
                         } else if (snapshot.hasData) {
                           final image = snapshot.data!;
                           return GestureDetector(
-                            onTap: () => widget.onPageClicked?.call(pageNumber),
+                            onTap: () {
+                              widget.onPageClicked?.call(pageNumber);
+                              if (widget.scrollToCurrentPage) {
+                                swipeToPage(pageNumber, pageCount);
+                              }
+                            },
                             child: Padding(
                               padding:
                                   const EdgeInsets.symmetric(horizontal: 8),
