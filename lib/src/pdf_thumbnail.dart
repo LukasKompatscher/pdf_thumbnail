@@ -1,32 +1,37 @@
-// Copyright (c) 2022, Very Good Ventures
-// https://verygood.ventures
-//
-// Use of this source code is governed by an MIT-style
-// license that can be found in the LICENSE file or at
-// https://opensource.org/licenses/MIT.
-
 import 'dart:io';
-import 'dart:ui';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:pdfrx/pdfrx.dart';
+import 'package:pdf_image_renderer/pdf_image_renderer.dart';
 
-/// Callback when the user taps on a thumbnail
+/// A typedef representing a callback function that takes an integer parameter
+/// representing a page number and returns void.
 typedef ThumbnailPageCallback = void Function(int page);
 
-/// Function that returns page number widget
+/// A typedef representing a function that takes an integer parameter
+/// representing a page number and a boolean indicating whether it is the
+/// current page, and returns a Widget.
+// ignore: avoid_positional_boolean_parameters
 typedef CurrentPageWidget = Widget Function(int page, bool isCurrentPage);
 
-/// {@template pdf_thumbnail}
-/// Thumbnail viewer for pdfs
-/// {@endtemplate}
+/// A widget that displays a thumbnail of a PDF file.
 class PdfThumbnail extends StatefulWidget {
-  /// Creates a [PdfThumbnail] from a file.
+  /// Creates a [PdfThumbnail] widget from a file path.
+  ///
+  /// The [path] parameter specifies the path to the PDF file.
+  /// The [key] parameter is an optional key to identify this widget.
+  /// The [backgroundColor] the background color of the thumbnail.
+  /// The [currentPageDecoration] the decoration for the current page.
+  /// The [currentPageWidget] the widget to display for the current page.
+  /// The [height] the height of the thumbnail.
+  /// The [onPageClicked] is a callback function that is
+  /// called when a page is clicked.
+  /// The [currentPage] the current page number.
+  /// The [loadingIndicator] the widget to display while loading the thumbnail.
+  /// The [scrollToCurrentPage] whether to scroll to the current page.
+  /// The [closeButton] the widget to display as a close button.
   factory PdfThumbnail.fromFile(
     String path, {
-    Key? key,
     Color? backgroundColor,
     BoxDecoration? currentPageDecoration,
     CurrentPageWidget? currentPageWidget,
@@ -36,10 +41,8 @@ class PdfThumbnail extends StatefulWidget {
     Widget? loadingIndicator,
     bool? scrollToCurrentPage,
     Widget? closeButton,
-    int? pageCount,
   }) {
     return PdfThumbnail._(
-      key: key,
       path: path,
       backgroundColor: backgroundColor ?? Colors.black,
       height: height ?? 200,
@@ -61,11 +64,11 @@ class PdfThumbnail extends StatefulWidget {
           ),
       scrollToCurrentPage: scrollToCurrentPage ?? false,
       closeButton: closeButton,
-      pageCount: pageCount ?? 0,
     );
   }
+
+  /// Private constructor for [PdfThumbnail].
   const PdfThumbnail._({
-    super.key,
     this.path,
     this.backgroundColor,
     required this.height,
@@ -76,43 +79,37 @@ class PdfThumbnail extends StatefulWidget {
     this.currentPageWidget,
     this.scrollToCurrentPage = false,
     this.closeButton,
-    required this.pageCount,
   });
 
-  /// File path
+  /// The path to the PDF file.
   final String? path;
 
-  /// Background color
+  /// The background color of the thumbnail.
   final Color? backgroundColor;
 
-  /// Decoration for current page
+  /// The decoration for the current page.
   final BoxDecoration? currentPageDecoration;
 
-  /// Simple function that returns widget that shows the page number.
-  /// Widget will be in [Stack] so you can use [Positioned] or [Align]
+  /// The widget to display for the current page.
   final CurrentPageWidget? currentPageWidget;
 
-  /// Height
+  /// The height of the thumbnail.
   final double height;
 
-  /// Callback to run when a page is clicked
+  /// A callback function that is called when a page is clicked.
   final ThumbnailPageCallback? onPageClicked;
 
-  /// Current page, index + 1
+  /// The current page number.
   final int currentPage;
 
-  /// Loading indicator
+  /// The widget to display while loading the thumbnail.
   final Widget? loadingIndicator;
 
-  /// Close button
+  /// The widget to display as a close button.
   final Widget? closeButton;
 
-  /// Whether page browser will scroll to the current page or not,
-  /// false by default
+  /// Whether to scroll to the current page.
   final bool scrollToCurrentPage;
-
-  //Page Count,
-  final int pageCount;
 
   @override
   State<PdfThumbnail> createState() => _PdfThumbnailState();
@@ -123,12 +120,29 @@ class _PdfThumbnailState extends State<PdfThumbnail> {
   late ImageThumbnailCacher cacher;
   final Map<int, Future<Uint8List?>> _imageFutures = {};
   final Map<int, Uint8List?> _imageCache = {};
+  late PdfImageRendererPdf _pdf;
+  int _pageCount = 0;
+  bool _isRendering = false;
 
   @override
   void initState() {
     super.initState();
     controller = ScrollController();
     cacher = ImageThumbnailCacher();
+    _initializePdf();
+  }
+
+  Future<void> _initializePdf() async {
+    try {
+      _pdf = PdfImageRendererPdf(path: widget.path!);
+      await _pdf.open();
+      _pageCount = await _pdf.getPageCount();
+      setState(() {});
+    } catch (e) {
+      if (kDebugMode) {
+        print(e);
+      }
+    }
   }
 
   void swipeToPage(int page, int itemCount) {
@@ -148,7 +162,7 @@ class _PdfThumbnailState extends State<PdfThumbnail> {
     super.didUpdateWidget(oldWidget);
     if (widget.scrollToCurrentPage &&
         widget.currentPage != oldWidget.currentPage) {
-      swipeToPage(widget.currentPage, widget.pageCount);
+      swipeToPage(widget.currentPage, _pageCount);
     }
   }
 
@@ -160,67 +174,71 @@ class _PdfThumbnailState extends State<PdfThumbnail> {
         Container(
           height: widget.height,
           color: widget.backgroundColor,
-          child: ListView.builder(
-            controller: controller,
-            padding: EdgeInsets.symmetric(vertical: widget.height * 0.1),
-            scrollDirection: Axis.horizontal,
-            itemCount: widget.pageCount,
-            itemBuilder: (context, index) {
-              final pageNumber = index;
-              final isCurrentPage = pageNumber == widget.currentPage;
+          child: _pageCount > 0
+              ? ListView.builder(
+                  controller: controller,
+                  padding: EdgeInsets.symmetric(vertical: widget.height * 0.1),
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _pageCount,
+                  itemBuilder: (context, index) {
+                    final pageNumber = index;
+                    final isCurrentPage = pageNumber == widget.currentPage;
 
-              if (!_imageFutures.containsKey(pageNumber)) {
-                _imageFutures[pageNumber] =
-                    _loadImage(pageNumber, widget.path!);
-              }
+                    if (!_imageFutures.containsKey(pageNumber)) {
+                      _imageFutures[pageNumber] =
+                          _loadImage(pageNumber, widget.path!);
+                    }
 
-              return FutureBuilder<Uint8List?>(
-                future: _imageFutures[pageNumber],
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Container(
-                        width: 100,
-                        height: widget.height,
-                        color: Colors.grey.shade300,
-                      ),
-                    );
-                  } else if (snapshot.hasData) {
-                    final image = snapshot.data!;
-                    return GestureDetector(
-                      onTap: () {
-                        widget.onPageClicked?.call(pageNumber);
+                    return FutureBuilder<Uint8List?>(
+                      future: _imageFutures[pageNumber],
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            child: Container(
+                              width: 100,
+                              height: widget.height,
+                              color: Colors.grey.shade300,
+                            ),
+                          );
+                        } else if (snapshot.hasData) {
+                          final image = snapshot.data!;
+                          return GestureDetector(
+                            onTap: () {
+                              widget.onPageClicked?.call(pageNumber);
+                            },
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 8),
+                              child: Stack(
+                                children: [
+                                  AnimatedContainer(
+                                    key: Key('thumbnail_$pageNumber'),
+                                    duration: const Duration(milliseconds: 100),
+                                    decoration: isCurrentPage
+                                        ? widget.currentPageDecoration!
+                                        : const BoxDecoration(
+                                            color: Colors.white,
+                                          ),
+                                    child: Image.memory(image),
+                                  ),
+                                  widget.currentPageWidget!(
+                                    pageNumber,
+                                    isCurrentPage,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        } else {
+                          return const SizedBox();
+                        }
                       },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: Stack(
-                          children: [
-                            AnimatedContainer(
-                              key: Key('thumbnail_$pageNumber'),
-                              duration: const Duration(milliseconds: 100),
-                              decoration: isCurrentPage
-                                  ? widget.currentPageDecoration!
-                                  : const BoxDecoration(
-                                      color: Colors.white,
-                                    ),
-                              child: Image.memory(image),
-                            ),
-                            widget.currentPageWidget!(
-                              pageNumber,
-                              isCurrentPage,
-                            ),
-                          ],
-                        ),
-                      ),
                     );
-                  } else {
-                    return const SizedBox();
-                  }
-                },
-              );
-            },
-          ),
+                  },
+                )
+              : widget.loadingIndicator!,
         ),
       ],
     );
@@ -235,40 +253,56 @@ class _PdfThumbnailState extends State<PdfThumbnail> {
       _imageCache[pageNumber] = cachedImage;
       return cachedImage;
     }
+
+    if (_isRendering) {
+      // Wait until the current rendering is finished
+      // ignore: inference_failure_on_instance_creation
+      await Future.delayed(const Duration(milliseconds: 100));
+      return _loadImage(pageNumber, filePath);
+    }
+
+    _isRendering = true;
+
     try {
-      final document = await PdfDocument.openFile(filePath);
-      final page = document.pages[pageNumber];
-      final pageImage = await page.render(
-        width: page.width.toInt(),
-        height: page.height.toInt(),
+      await _pdf.openPage(pageIndex: pageNumber);
+      final size = await _pdf.getPageSize(pageIndex: pageNumber);
+      final img = await _pdf.renderPage(
+        pageIndex: pageNumber,
+        x: 0,
+        y: 0,
+        width: size.width,
+        height: size.height,
+        scale: 1,
       );
-      final image = await pageImage!.createImage();
-      final pngBytes = await image.toByteData(format: ImageByteFormat.png);
-      final imageBytes = Uint8List.view(pngBytes!.buffer);
-      await cacher.write(filePath, pageNumber, imageBytes);
-      _imageCache[pageNumber] = imageBytes;
-      return imageBytes;
+      await _pdf.closePage(pageIndex: pageNumber);
+
+      _imageCache[pageNumber] = img;
+      await cacher.write(filePath, pageNumber, img!);
+      return img;
     } catch (e) {
       if (kDebugMode) {
         print(e);
       }
       return null;
+    } finally {
+      _isRendering = false;
     }
   }
 
   @override
   void dispose() {
     controller.dispose();
+    _pdf.close();
     super.dispose();
   }
 }
 
 /// A class that provides methods for reading and writing image thumbnails.
 class ImageThumbnailCacher {
-  /// Reads the thumbnail image data from the cache.
+  /// Reads the image thumbnail data from the cache.
   ///
-  /// Returns the thumbnail image data as a [Uint8List] if it exists in the cache,
-  /// otherwise returns `null`.
+  /// Returns the image thumbnail data as a [Uint8List]
+  /// if it exists in the cache, otherwise returns `null`.
   ///
   /// The [id] parameter is the unique identifier of the image.
   ///
@@ -288,19 +322,22 @@ class ImageThumbnailCacher {
     return null;
   }
 
-  /// Writes the thumbnail image data to the cache.
+  /// Writes the image thumbnail data to the cache.
   ///
-  /// Returns `true` if the write operation is successful, otherwise returns `false`.
+  /// Returns `true` if the write operation is successful,
+  /// otherwise returns `false`.
   ///
   /// The [id] parameter is the unique identifier of the image.
   ///
   /// The [page] parameter is the page number of the image.
   ///
-  /// The [data] parameter is the thumbnail image data to be written.
+  /// The [data] parameter is the image thumbnail data to be written.
   Future<bool> write(String id, int page, Uint8List data) async {
     try {
       final dir = await getApplicationDocumentsDirectory();
+      // Create the directory if it does not exist
       final file = File('${dir.path}/$id-$page.png');
+      await file.create(recursive: true);
       await file.writeAsBytes(data);
       return true;
     } catch (e) {
