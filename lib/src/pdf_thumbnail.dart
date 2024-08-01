@@ -41,6 +41,7 @@ class PdfThumbnail extends StatefulWidget {
     Widget? loadingIndicator,
     bool? scrollToCurrentPage,
     Widget? closeButton,
+    double? scale,
   }) {
     return PdfThumbnail._(
       path: path,
@@ -64,6 +65,7 @@ class PdfThumbnail extends StatefulWidget {
           ),
       scrollToCurrentPage: scrollToCurrentPage ?? false,
       closeButton: closeButton,
+      scale: scale ?? 1,
     );
   }
 
@@ -72,6 +74,7 @@ class PdfThumbnail extends StatefulWidget {
     this.path,
     this.backgroundColor,
     required this.height,
+    required this.scale,
     this.onPageClicked,
     required this.currentPage,
     this.currentPageDecoration,
@@ -110,6 +113,9 @@ class PdfThumbnail extends StatefulWidget {
 
   /// Whether to scroll to the current page.
   final bool scrollToCurrentPage;
+
+  /// Which scale to render the image
+  final double scale;
 
   @override
   State<PdfThumbnail> createState() => _PdfThumbnailState();
@@ -272,7 +278,7 @@ class _PdfThumbnailState extends State<PdfThumbnail> {
         y: 0,
         width: size.width,
         height: size.height,
-        scale: 1,
+        scale: widget.scale,
       );
       await _pdf.closePage(pageIndex: pageNumber);
 
