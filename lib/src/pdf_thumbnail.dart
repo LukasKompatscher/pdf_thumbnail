@@ -126,7 +126,7 @@ class _PdfThumbnailState extends State<PdfThumbnail> {
   late ImageThumbnailCacher cacher;
   final Map<int, Future<Uint8List?>> _imageFutures = {};
   final Map<int, Uint8List?> _imageCache = {};
-  late PdfImageRendererPdf _pdf;
+  late PdfImageRenderer _pdf;
   int _pageCount = 0;
   bool _isRendering = false;
 
@@ -140,7 +140,7 @@ class _PdfThumbnailState extends State<PdfThumbnail> {
 
   Future<void> _initializePdf() async {
     try {
-      _pdf = PdfImageRendererPdf(path: widget.path!);
+      _pdf = PdfImageRenderer(path: widget.path!);
       await _pdf.open();
       _pageCount = await _pdf.getPageCount();
       setState(() {});
